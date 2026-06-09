@@ -15,27 +15,28 @@ const SMS_SECRET = process.env.SMS_SECRET || 'posterlagai2026';
 // ── RECEIVE SMS FROM PHONE ──
 // Your SMS forwarder app hits this endpoint
 app.post('/sms', (req, res) => {
-  const { secret, from, body, timestamp } = req.body;
+  const { secret, from, timestamp } = req.body;
+  const smsText = req.body.body || req.body.text || ''; // handles both field names
 
   if (secret !== SMS_SECRET) {
     return res.status(403).json({ error: 'Forbidden' });
   }
 
-  console.log('SMS received:', { from, body });
+  console.log('SMS received:', { from, smsText });
 
   // Parse bKash SMS format:
   // "You have received Tk 70.00 from 01XXXXXXXXX. TrxID AB12CD3456 at 09/06/2026..."
   // Also handles: "Tk70", "BDT 70", etc.
-  const amountMatch = body.match(/(?:Tk|BDT|৳)\s*(\d+(?:\.\d+)?)/i);
-  const trxMatch    = body.match(/TrxID\s*([A-Z0-9]+)/i);
-  const fromMatch   = body.match(/from\s*(01\d{9})/i);
+  const amountMatch = smsText.match(/(?:Tk|BDT|৳)\s*(\d+(?:\.\d+)?)/i);
+  const trxMatch    = smsText.match(/TrxID\s*([A-Z0-9]+)/i);
+  const fromMatch   = smsText.match(/from\s*(01\d{9})/i);
 
   if (trxMatch) {
     const trxId = trxMatch[1].toUpperCase();
     receivedPayments[trxId] = {
       amount:    amountMatch ? parseFloat(amountMatch[1]) : null,
       from:      fromMatch ? fromMatch[1] : (from || null),
-      body:      body,
+      body:      smsText,
       timestamp: timestamp || Date.now(),
     };
     console.log('Stored TrxID:', trxId, receivedPayments[trxId]);
@@ -77,6 +78,12 @@ app.get('/verify', (req, res) => {
 
 // ── HEALTH CHECK ──
 app.get('/', (req, res) => res.send('Poster Lagai Payment Verifier running ✓'));
+
+// ── KEEP-ALIVE PING ──
+// Prevents Render free tier from sleeping after 15 min of inactivity
+setInterval(() => {
+  fetch('https://posterlagai-verifier.onrender.com').catch(() => {});
+}, 10 * 60 * 1000); // every 10 minutes
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
