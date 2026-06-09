@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: posterlagai-verifier
+    env: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: SMS_SECRET
+        value: posterlagai2026
