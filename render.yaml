@@ -6,4 +6,4 @@ services:
     startCommand: node server.js
     envVars:
       - key: SMS_SECRET
-        value: posterlagai2026
+        sync: false
